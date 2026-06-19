@@ -1,5 +1,5 @@
 import { getCookie, setCookie, deleteCookie } from '@tanstack/react-start/server';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { sessions, users, userRoles } from '@/db/schema';
 
@@ -30,6 +30,7 @@ export async function createSession(userId: string) {
   });
   setCookie(SESSION_COOKIE, token, {
     httpOnly: true,
+    secure: true,
     sameSite: 'lax',
     path: '/',
     maxAge: SESSION_DAYS * 24 * 60 * 60,
@@ -50,7 +51,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (!token) return null;
 
   const db = getDb();
-  const now = new Date();
+
+  const [sessionRow] = await db
+    .select({ userId: sessions.userId })
+    .from(sessions)
+    .where(and(eq(sessions.token, token), sql`${sessions.expiresAt} > now()`))
+    .limit(1);
+
+  if (!sessionRow) return null;
 
   const [row] = await db
     .select({
@@ -59,9 +67,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
       name: users.name,
       avatarUrl: users.avatarUrl,
     })
-    .from(sessions)
-    .innerJoin(users, eq(sessions.userId, users.id))
-    .where(and(eq(sessions.token, token), gt(sessions.expiresAt, now)))
+    .from(users)
+    .where(eq(users.id, sessionRow.userId))
     .limit(1);
 
   if (!row) return null;

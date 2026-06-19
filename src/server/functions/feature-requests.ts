@@ -88,17 +88,18 @@ async function enrichRequests(
 }
 
 export const listFeatureRequests = createServerFn({ method: 'GET' })
-  .inputValidator((data: ListInput) => data)
+  .inputValidator((data: ListInput = {}) => data ?? {})
   .handler(async ({ data }) => {
+    const filters = data ?? {};
     await requireSessionUser();
     const db = getDb();
     const sessionUser = await getSessionUser();
 
     const conditions = [];
-    if (data.statusFilter) conditions.push(eq(featureRequests.status, data.statusFilter));
-    if (data.categoryFilter) conditions.push(eq(featureRequests.category, data.categoryFilter));
-    if (data.searchQuery?.trim()) {
-      const q = `%${data.searchQuery.trim()}%`;
+    if (filters.statusFilter) conditions.push(eq(featureRequests.status, filters.statusFilter));
+    if (filters.categoryFilter) conditions.push(eq(featureRequests.category, filters.categoryFilter));
+    if (filters.searchQuery?.trim()) {
+      const q = `%${filters.searchQuery.trim()}%`;
       conditions.push(or(ilike(featureRequests.title, q), ilike(featureRequests.description, q))!);
     }
 
@@ -113,7 +114,7 @@ export const listFeatureRequests = createServerFn({ method: 'GET' })
     const enriched = await enrichRequests(rows, sessionUser?.id ?? null);
 
     enriched.sort((a, b) => {
-      if (data.sortBy === 'date') {
+      if (filters.sortBy === 'date') {
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       }
       return b.up_count - b.down_count - (a.up_count - a.down_count);

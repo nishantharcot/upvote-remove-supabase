@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 import { signIn, signUp } from '@/server/functions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +11,7 @@ interface AuthPageProps {
 }
 
 export function AuthPage({ onSuccess }: AuthPageProps) {
+  const { refresh } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +28,7 @@ export function AuthPage({ onSuccess }: AuthPageProps) {
       } else {
         await signUp({ data: { email, password, name } });
       }
+      await refresh();
       onSuccess?.();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Authentication failed');
